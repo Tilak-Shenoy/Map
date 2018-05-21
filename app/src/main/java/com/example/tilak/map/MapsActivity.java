@@ -1,6 +1,7 @@
 package com.example.tilak.map;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -11,11 +12,13 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.AlertDialog;
+import android.support.v7.widget.Toolbar;
 import android.text.Html;
 import android.util.Log;
 import android.view.View;
@@ -57,6 +60,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     LocationManager mLocationManager;
     final int LOCATION_REFRESH_TIME = 10000;
     final int LOCATION_REFRESH_DISTANCE = 1000;
+    Toolbar toolbar;
 
     private LocationManager locationManager;
     SupportMapFragment mapFragment;
@@ -67,15 +71,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private boolean canGetLocation;
     Marker ourGlobalMarker;
     ArrayList stepsArray= new ArrayList();
-    TextView distanceTextView;
 
+    @SuppressLint("ResourceAsColor")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        distanceTextView= findViewById(R.id.distanceTextView);
+
+        toolbar=findViewById(R.id.toolbar);
+        toolbar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(MapsActivity.this, AlertDialogActivity.class);
+                i.putExtra("Route", stepsArray);
+                startActivity(i);
+            }
+        });
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            toolbar.setTitleTextColor(getColor(R.color.white));
+        }
+        toolbar.setTitle("Maps");
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             // TODO: Consider calling
@@ -123,6 +140,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.i("Provider","Provider " + provider + " has been selected.");
         } else {
             Toast.makeText(this, "Cannot find your location", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS));
+
         }
     }
 
@@ -291,7 +310,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         } catch (Exception e) {
             e.printStackTrace();
         }
-    Log.d("Longitude", String.valueOf(location.getLongitude()));
+//    Log.d("Longitude", String.valueOf(location.getLongitude()));
         return location;
     }
 
@@ -324,6 +343,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
             MarkerAnimation.animateMarkerToICS(ourGlobalMarker, latLng, new LatLngInterpolator.Spherical());
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
+            if(!path.isEmpty())
+                toolbar.setTitle(String.valueOf((String.valueOf(stepsArray.get(0)))));
             if(markerPoints.size()==2 &&latLng.equals(markerPoints.get(1))){
                 Toast.makeText(MapsActivity.this,"You have reached your destination!!",Toast.LENGTH_LONG).show();
             }
@@ -441,33 +462,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private final LocationListener mLocationListener = new LocationListener() {
         @Override
         public void onLocationChanged(final Location location) {
-            //your code here
-          /*  if(true)
-                return;
-            LatLng current=new LatLng(location.getLatitude(),location.getLongitude());
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(current, 16));
-            MarkerOptions markerOptions= new MarkerOptions();
-            markerOptions.position(current);
-            markerPoints.add(0,current);
-            mMap.clear();
-            mMap.addMarker(markerOptions);
-            mMap.addMarker(new MarkerOptions().position((LatLng) markerPoints.get(1)));
-            //onMapReady(mMap);
-            // Checks, whether start and end locations are captured
-            if (markerPoints.size() >= 2) {
-                LatLng origin = (LatLng) markerPoints.get(0);
-                LatLng dest = (LatLng) markerPoints.get(1);
-
-                // Getting URL to the Google Directions API
-                String url = getDirectionsUrl(origin, dest);
-
-                Log.d("URL", String.valueOf(url));
-                DownloadTask downloadTask = new DownloadTask();
-
-                // Start downloading json data from Google Directions API
-                downloadTask.execute(url);
-
-            }*/
         }
 
         @Override
@@ -594,8 +588,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-        int i=0;
-
+        int i;
             try {
                 JSONArray routes=object.getJSONArray("routes");
                 if (routes==null){
@@ -618,7 +611,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     double endLong=currentStep.getJSONObject("end_location").getDouble("lng");
                     Route currentRoute=new Route(distance,turns,duration,startLat,startLong,endLat,endLong);
                     path.add(currentRoute);
-                    stepsArray.add(turns);
+                    stepsArray.add(String.valueOf((((Route)path.get(i)).getDistance()/1000.0))+" kms "+ turns);
                 }
 
 
@@ -635,8 +628,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             for(Object i:list){
                 Log.d("Turns", i.toString());
             }
-            distanceTextView.setText(String.valueOf(((Route)path.get(0)).getDistance()));
-            distanceTextView.setVisibility(View.VISIBLE);
+
+            if(!path.isEmpty())
+                toolbar.setTitle(String.valueOf(stepsArray.get(0)));
+
             buildAlert(list);
 
         }
@@ -709,9 +704,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     private void buildAlert(List direction){
         AlertDialog.Builder builderSingle = new AlertDialog.Builder(MapsActivity.this);
-        builderSingle.setTitle("Select One Name:-");
+        builderSingle.setTitle("Your Route");
 
-        final ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(MapsActivity.this, android.R.layout.select_dialog_singlechoice,direction);
+        final ArrayAdapter<String> arrayAdapter = new ArrayAdapter<String>(MapsActivity.this, android.R.layout.simple_list_item_1,direction);
 
 
         builderSingle.setNegativeButton("cancel", new DialogInterface.OnClickListener() {
@@ -724,17 +719,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         builderSingle.setAdapter(arrayAdapter, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                String strName = arrayAdapter.getItem(which);
-                AlertDialog.Builder builderInner = new AlertDialog.Builder(MapsActivity.this);
-                builderInner.setMessage(strName);
-                builderInner.setTitle("Your Selected Item is");
-                builderInner.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog,int which) {
-                        dialog.dismiss();
-                    }
-                });
-                builderInner.show();
+
             }
         });
         builderSingle.show();
