@@ -23,7 +23,6 @@ import android.widget.ArrayAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -324,7 +323,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             ourGlobalMarker = mMap.addMarker(new MarkerOptions().position(latLng)
                     .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED)));
             MarkerAnimation.animateMarkerToICS(ourGlobalMarker, latLng, new LatLngInterpolator.Spherical());
-            mMap.addCircle(new CircleOptions().center(latLng).radius(20).fillColor(R.color.Radius).strokeWidth((float)0.1));
             mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 18));
             if(markerPoints.size()==2 &&latLng.equals(markerPoints.get(1))){
                 Toast.makeText(MapsActivity.this,"You have reached your destination!!",Toast.LENGTH_LONG).show();
@@ -410,6 +408,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (markerPoints.size() >= 2) {
                     LatLng origin = (LatLng) markerPoints.get(0);
                     LatLng dest = (LatLng) markerPoints.get(1);
+                    mMap.addMarker(new MarkerOptions().position((LatLng) markerPoints.get(0)));
 
                     // Getting URL to the Google Directions API
                     String url = getDirectionsUrl(origin, dest);
@@ -636,7 +635,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             for(Object i:list){
                 Log.d("Turns", i.toString());
             }
+            distanceTextView.setText(String.valueOf(((Route)path.get(0)).getDistance()));
+            distanceTextView.setVisibility(View.VISIBLE);
             buildAlert(list);
+
         }
     }
     public String stripHtml(String html) {
